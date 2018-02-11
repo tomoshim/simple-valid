@@ -1,0 +1,1 @@
+export default 'この項目は必須項目です';

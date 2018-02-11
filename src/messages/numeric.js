@@ -1,0 +1,1 @@
+export default '数値を入力してください';
