@@ -363,12 +363,3 @@ describe('Validation New Rule Check', () => {
     );
   });
 });
-
-
-function test(arg, arg2) {
-  console.log(this, arg, arg2)
-}
-
-test()
-
-test.apply('a', [1, 2])
