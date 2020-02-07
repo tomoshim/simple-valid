@@ -1,8 +1,9 @@
 import min from './min';
 import max from './max';
 
-export default function (value, params) {
-  let min_result = min(value, [params[0]]);
-  let max_result = max(value, [params[1]]);
-  return !min_result && !max_result ? false : true;
+export default function (value, [min_num, max_num]) {
+  const min_failed = min(value, [min_num]);
+  const max_failed = max(value, [max_num]);
+
+  return min_failed || max_failed;
 }
