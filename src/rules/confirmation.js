@@ -1,7 +1,7 @@
 import prepares from '../prepares/confirmation';
 
-const rule = (value, params) => {
-  return value !== params[0] ? true : false;
+const rule = (value, [original_password]) => {
+  return value !== original_password;
 };
 
 export default [
