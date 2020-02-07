@@ -1,5 +1,5 @@
-export default function (value, params) {
-  let re = new RegExp(params[0]);
-  let result = value.match(re);
-  return result === null || !result[0] ? true : false;
+export default function (value, [pattern]) {
+  const regExp = new RegExp(pattern);
+  const result = value.match(regExp);
+  return result === null || !result[0];
 }
