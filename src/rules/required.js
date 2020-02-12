@@ -1,7 +1,5 @@
 export default function (value, params) {
-  let result = false;
-  if (value === '' || value === null || value === undefined) {
-    result = true;
-  }
-  return result;
+  return value === ''
+      || value === null
+      || value === undefined;
 }
