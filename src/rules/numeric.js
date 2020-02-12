@@ -1,3 +1,6 @@
 export default (value, params) => {
-  return isNaN(parseInt(value)) ? true : false;
+  if (!['string', 'number'].includes(typeof value)) return true;
+  if (value === '') return true;
+
+  return isNaN(value);
 }
