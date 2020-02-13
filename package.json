@@ -1,6 +1,6 @@
 {
   "name": "simple-valid",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Simple Validation Object. Touch And Feel Like Laravel Validation.",
   "main": "lib/index.js",
   "scripts": {
