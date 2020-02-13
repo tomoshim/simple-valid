@@ -8,6 +8,10 @@
     "build": "babel src --out-dir lib --ignore *.spec.js,entry.js && NODE_ENV=production webpack",
     "prepare": "npm run build"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com:WireframesJPN/simple-valid.git"
+  },
   "author": "Junzo Matsunoo <junzo_m@wire-frames.net>",
   "license": "ISC",
   "dependencies": {
