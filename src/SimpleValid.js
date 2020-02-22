@@ -10,174 +10,163 @@ import Errors from 'simple-error-object';
  */
 export default class SimpleValid {
 
-  constructor (rules, messages) {
+  /**
+   * @param {Object<string, function|function[]>} rules
+   * @param {Object<string, string|function>} messages
+   */
+  constructor (rules = {}, messages) {
     this.rules = {};
     this.prepares = {};
     this.messages = {};
-    this.addRules(rules, messages);
-    this.values = {};
+
+    Object.entries(rules).forEach(([rule_name, rule]) => {
+      this.addRule(rule_name, rule, messages[rule_name])
+    });
   }
 
   /**
-   * Add Rule
-   * @param name
-   * @param rule
-   * @param message
+   *
+   * @param {string} rule_name
+   * @param {function|[function, function]} rule
+   * @param {string|function} message
    */
-  addRule (name, rule, message) {
-    if (typeof rule !== 'function' && rule.length) {
-      if (typeof rule[0] === 'function') this.rules[name] = rule[0];
-      if (typeof rule[1] === 'function') this.prepares[name] = rule[1];
-    } else {
-      if (typeof rule === 'function') this.rules[name] = rule;
-    }
-    if (message) {
-      this.messages[name] = message;
-    }
-  }
+  addRule (rule_name, rule, message) {
+    const [base_rule, prepare] = typeof rule === 'function' ? [rule] : rule;
+    const safe_message = message === undefined ? `${rule_name} was undefined` : message;
 
-  /**
-   * Add Rules
-   * @param rules
-   * @param messages
-   */
-  addRules (rules, messages) {
-    for (let key in rules) {
-      if (messages[key] === undefined) {
-        messages[key] = `${key} was undefined`;
-      }
-      this.addRule(key, rules[key], messages[key]);
-    }
-  }
+    this.rules[rule_name] = base_rule;
 
-  setValues (values) {
-    this.values = values;
-  }
-
-  setRules (target) {
-    /**
-     * // Create Rules Object Like this..
-     * {
-     *  'email': [
-     *    { name: 'required', params: null },
-     *    { name: 'email', params: null },
-     *  ]
-     * }
-     */
-    let result = {};
-    for (var key in target) {
-      var rules = target[key];
-      var ruleStrings;
-      /**
-       *
-       */
-      if (typeof rules != 'string' && rules.length !== undefined) {
-        ruleStrings = rules;
-      } else {
-        ruleStrings = rules.split('|');
-      }
-      result[key] = [];
-      for (var i = 0; i < ruleStrings.length; i++) {
-        result[key].push(this.createRuleObject(ruleStrings[i], key));
-      }
-    }
-
-    this.check_rules = result;
+    if (prepare) this.prepares[rule_name] = prepare;
+    if (safe_message) this.messages[rule_name] = safe_message;
   }
 
   /**
    * execute validation.
-   * @param {object} values
-   * @param {object} rules
-   * @param {object} messages
-   * @returns {*}
+   *
+   * @param {Object} values
+   * @param {Object} rules
+   * @param {Object<string, string|function>} messages
+   *
+   * @returns {Errors}
    */
   execute (values, rules, messages={}) {
+    const rule_params = this.createRuleParams(rules, values);
 
-    this.setValues(values);
-    this.setRules(rules);
     const errors = new Errors();
 
     try {
-      for (let target in this.check_rules) {
-        let target_val = this.values[target] === undefined ? false : this.values[target];
-        if (target_val === false) throw 'Missing Validation Target.';
-        let error = this.check(this.check_rules[target], target_val);
+      Object.entries(rule_params).forEach(([rule_key, rule_config]) => {
+        const target_value = values[rule_key];
+        if (target_value === undefined) throw 'Missing Validation Target.';
+
+        const error = this.validate(rule_config, target_value);
+
         if (error) {
-          let message = this.getMessage(error.name, target, messages);
-          errors.add(target, (typeof message === 'function' ? message(error.value, error.rule.params) : message))
+          const message = this.getMessage(error.name, rule_key, messages);
+
+          errors.add(rule_key, (typeof message === 'function' ? message(error.value, error.rule.params) : message))
         }
-      }
+      });
+
       return errors;
     } catch (e) {
       console.error(e);
     }
   }
 
-  createRuleObject (ruleString, key) {
-    /**
-     * // Create Validation Rule Object Like this..
-     * {
-     *  name: '',
-     *  params: []
-     * }
-     */
-    let rule = ruleString.split(':');
-    let name = rule[0];
+  /**
+   * Create Rules Config Like this..
+   *
+   * {
+   *  'email': [
+   *    { name: 'required', params: [] },
+   *    { name: 'email', params: [] },
+   *  ]
+   * }
+   *
+   * @param {Object<string, string|[]>} rules
+   * @param {Object} values
+   *
+   * @return {Object<string, Array.<Object.<{name: string, params: []}>>>}
+   */
+  createRuleParams (rules, values) {
+    return Object.entries(rules).reduce((reduced, [param_name, rules]) => {
+      const splitted_rules = typeof rules === 'string' ? rules.split('|') : rules;
 
-    // Preparing Rule Object.
-    /**
-     * you can modify rule object if you set up the preparing object.
-     */
-    if (this.prepares[name] !== undefined) {
-      rule = this.prepares[name](this.values, key, rule)
-    }
+      reduced[param_name] = splitted_rules.map((each_rules) => this.createRuleParam(param_name, each_rules, values));
 
-    let params;
-    if (rule[1] !== undefined) {
-      params = rule[1].split(',');
-    }
-
-    return {
-      name: name,
-      params: params ? params : null
-    }
-
+      return reduced;
+    }, {});
   }
 
-  check (rules, value) {
-    for (let i = 0; i < rules.length; i++) {
-      let result = this.checkRule(value, rules[i]);
-      if (result) {
-        return result;
-      }
+  /**
+   * Create Validation Rule Config Like this..
+   *
+   * {
+   *  name: '',
+   *  params: []
+   * }
+   *
+   * @param {string} param_name
+   * @param {string|[]} ruleString
+   * @param {Object} values
+   *
+   * @return {Object.<{name: string, params: []}>}
+   */
+  createRuleParam (param_name, ruleString, values) {
+    const rule = ruleString.split(':');
+    const [rule_name, ...rest_params] = rule;
+
+    const splitted_params = rest_params.length === 0 ?
+        rest_params :
+        rest_params.join(':').split(',');
+
+    /**
+     * Preparing Rule Object.
+     * you can modify rule object if you set up the preparing object.
+     */
+    const params = this.prepares[rule_name] ?
+        this.prepares[rule_name](values, param_name, splitted_params) :
+        splitted_params;
+
+    return {
+      name: rule_name,
+      params
     }
-    return false;
   }
 
   /**
    * check validation rules and add error if exist.
    * error
-   * @param value
-   * @param rule
-   * @return {string|boolean}
+   * @param {Array.<string|[]>} rule_param
+   * @param {*} value
+   * @return {null|string|{name: string, value: string, rule: {string|[]}}}
    */
-  checkRule (value, rule) {
-    const name = rule.name;
-    const params = rule.params;
-    if (this.rules[name] === undefined) return 'norule';
-    return this.rules[name](value, params) ? { name: name, value: value, rule: rule } : false;
+  validate (rule_param, value) {
+    for (let i = 0; i < rule_param.length; i++) {
+      const { name, params } = rule_param[i];
+      if (!this.rules[name]) return 'norule';
+
+      const invalid = this.rules[name](value, params);
+      if (invalid) return { name, value, rule: rule_param[i] };
+    }
+
+    return null;
   }
 
+  /**
+   *
+   * @param name
+   * @param target
+   * @param message
+   * @return {*}
+   */
   getMessage (name, target, message) {
-    let _message;
-    if (message && message[target] !== undefined && message[target][name] !== undefined) {
-      _message = message[target][name];
-    } else {
-      _message = this.messages[name]
-    }
-    return _message;
+    if (!message) return this.messages[name];
+    if (message[target] === undefined) return this.messages[name];
+    if (message[target][name] === undefined) return this.messages[name];
+
+    return message[target][name];
   }
 
 }
-

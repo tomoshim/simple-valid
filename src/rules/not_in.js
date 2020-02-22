@@ -1,7 +1,10 @@
-export default (value, params) => {
-  let result = false;
-  for (let i = 0; i < params.length; i++) {
-    if (value === params[i]) result = true;
-  }
-  return result;
-}
+export const not_in = (value, params) => {
+  return params.reduce((result, each_param) => {
+    if (value === each_param) return true;
+    return result;
+  }, false);
+};
+
+export default [
+  not_in,
+];
